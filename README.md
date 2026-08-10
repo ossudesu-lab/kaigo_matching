@@ -91,6 +91,8 @@ Vercel を利用（フロント: Vite ビルド → `dist`、`/api` はサーバ
 
 制限を知らずに素通りしたのか、知ったうえで選ばなかったのかを外から区別できるように、ここに明記している。
 
+このセキュリティ対策の詳しい経緯は Zenn 記事にまとめた: [LLM APIの個人デモを公開するとき、キーを隠すだけでは足りなかった](https://zenn.dev/ossudesu/articles/article-draft)
+
 ## eval
 
 - `eval-app.jsx` + `eval-cases.json`: 記録文からの抽出精度を検証
