@@ -10,7 +10,10 @@ const MAX_TOKENS = 1024;
 
 // プロンプトを1つ投げてテキストを受け取る。
 // model は各エンドポイントが環境変数から決める（例: 抽出=Haiku、連絡文=Sonnet）。
-export async function callAnthropic(prompt, model) {
+//
+// onUsage は任意。渡すと API が返したトークン数（{ input_tokens, output_tokens }）を
+// そのまま受け取れる。evalでコストを実測するためのフックで、本番は渡さない＝挙動は変わらない。
+export async function callAnthropic(prompt, model, onUsage) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("ANTHROPIC_API_KEY is not set");
 
@@ -34,6 +37,7 @@ export async function callAnthropic(prompt, model) {
   }
 
   const data = await res.json();
+  if (onUsage && data.usage) onUsage(data.usage);
   return (data.content || [])
     .filter((b) => b.type === "text")
     .map((b) => b.text)

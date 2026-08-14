@@ -1,10 +1,26 @@
 import { useState } from "react";
 
 /*
-  記録抽出eval（Prompt A vs 強化版Prompt B）
+  記録抽出eval（Prompt A vs 強化版Prompt B）── Claude.ai アーティファクト版・表示用デモ
+
   ─ 7/8のベースに eval-scoring.js の採点思想を組み込んだ実走版。
   ─ 正解データは JSON（eval-cases.json と同形式）で管理。画面上のテキスト欄で差し替え可能。
   ─ 採点の肝：重要フィールドを重く／見逃し(FN)を重罪／過剰(FP)も減点／重大な見逃しは別枠で警告。
+
+  ⚠ このファイルは「見せるためのデモ」であり、定義の正ではない。
+     アーティファクト環境ではプロジェクト内のモジュールを import できないため、
+     プロンプト・正解データ・採点ロジックの"写し"を自前で持っている。
+
+     正（唯一の定義）:
+       プロンプト・モデル : api/_lib/extract-prompt.js
+       正解データ         : eval-cases.json
+       採点ロジック       : scripts/eval-scoring.js
+       数字を出すeval     : scripts/eval-extract.js  ← 実測はこちらで行う
+
+     本番の性能を測る目的でこのファイルを使わないこと。
+     実際に、本番APIとevalが別々のプロンプトを持ち、evalで勝った判定基準が
+     本番に一つも反映されていない状態が発生していた。同じ事故を繰り返さないため。
+     写しを更新するときは、必ず上記の正から持ってくること（逆流させない）。
 */
 
 // ---------- 介護度 ----------
@@ -89,7 +105,10 @@ function parseCases(jsonText) {
 }
 
 // ---------- 2つのプロンプト ----------
-const FIELDS_HINT = `date(YYYY-MM-DD), kyotaku(紹介元の居宅・ケアマネ事業所), staff(担当ケアマネの氏名), care(要支援1〜要介護5), medical(true/false), result("regular"定期/"single"単発/"watch"様子見), trouble(true/false), discrepancy(true/false), summary(1〜2文)`;
+// ⚠ PROMPT_B は api/_lib/extract-prompt.js の buildPrompt() の写し。
+//    本番の挙動を変えたいときは、必ず api/_lib/extract-prompt.js を直してから
+//    ここへ反映する（このファイルを直しても本番には反映されない）。
+const FIELDS_HINT =`date(YYYY-MM-DD), kyotaku(紹介元の居宅・ケアマネ事業所), staff(担当ケアマネの氏名), care(要支援1〜要介護5), medical(true/false), result("regular"定期/"single"単発/"watch"様子見), trouble(true/false), discrepancy(true/false), summary(1〜2文)`;
 
 // Prompt A：最小限（判定基準なし）
 const PROMPT_A = (record) =>
