@@ -25,17 +25,26 @@ export const FIELD_SPEC = {
   result:      { weight: 3, type: "enum", critical: true,  label: "結果(定期/単発/様子見)" },
   trouble:     { weight: 2, type: "bool", fnPenalty: 1.0, fpPenalty: 0.4, critical: false, label: "トラブル" },
   care:        { weight: 2, type: "care", critical: false, label: "要介護度" },
-  staff:       { weight: 2, type: "text", critical: false, label: "担当ケアマネ" },
-  kyotaku:     { weight: 1, type: "text", critical: false, label: "紹介元" },
+  staff:       { weight: 2, type: "text", critical: true,  label: "担当ケアマネ" },
+  kyotaku:     { weight: 1, type: "text", critical: true,  label: "紹介元" },
   date:        { weight: 1, type: "date", critical: true,  label: "利用日" },
 };
 
 // weight と critical は別の軸である点に注意。
 //   weight   … 総合スコアへの影響度（間違えたときの減点の重さ）
 //   critical … 黙って間違えられては困るか（警告を出すか）
-// date は weight 1（総合への影響は小さい）だが critical（集計の軸なので黙って
-// 壊れては困る）。実際に2026-08、date が全ケース0点でも総合91点・警告0件で
-// 見逃された。この2軸を分けているのはそのため。
+//
+// date / staff / kyotaku は weight が軽い（1〜2）が critical。
+// いずれも集計の軸だからで、黙って壊れると集計結果そのものが狂う:
+//   date    … 月別の利用傾向
+//   staff   … 担当ケアマネ別の実績・信用スコア
+//   kyotaku … 居宅別の実績・信用スコア
+// 逆に care（要介護度）は属性であって集計の軸ではなく、1段階違いに部分点0.5が
+// あるため critical にしていない。
+//
+// この2軸を分ける必要は実例から来ている。2026-08、date が全14ケースで0点だったのに
+// 総合91点・警告0件で見逃された。重み付き採点は軽い項目が全滅しても総合点が
+// ほとんど動かないため、「点数は軽いが黙って壊れては困る」項目を別に持つ必要がある。
 
 // ---------- 正解データの読み込み ----------
 // eval-cases.json の { id, intent, record, truth:{...} } を、
