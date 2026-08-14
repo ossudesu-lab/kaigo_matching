@@ -27,8 +27,15 @@ export const FIELD_SPEC = {
   care:        { weight: 2, type: "care", critical: false, label: "要介護度" },
   staff:       { weight: 2, type: "text", critical: false, label: "担当ケアマネ" },
   kyotaku:     { weight: 1, type: "text", critical: false, label: "紹介元" },
-  date:        { weight: 1, type: "date", critical: false, label: "利用日" },
+  date:        { weight: 1, type: "date", critical: true,  label: "利用日" },
 };
+
+// weight と critical は別の軸である点に注意。
+//   weight   … 総合スコアへの影響度（間違えたときの減点の重さ）
+//   critical … 黙って間違えられては困るか（警告を出すか）
+// date は weight 1（総合への影響は小さい）だが critical（集計の軸なので黙って
+// 壊れては困る）。実際に2026-08、date が全ケース0点でも総合91点・警告0件で
+// 見逃された。この2軸を分けているのはそのため。
 
 // ---------- 正解データの読み込み ----------
 // eval-cases.json の { id, intent, record, truth:{...} } を、
@@ -86,8 +93,16 @@ export function scoreCase(predicted, truth) {
     perField[key] = { ...r, weight: spec.weight, label: spec.label,
                       predicted: predicted[key], truth: truth[key] };
     earned += r.score * spec.weight; total += spec.weight;
-    if (spec.critical && r.kind === "FN") criticalMisses.push(spec.label + "の見逃し");
-    if (key === "result" && r.score === 0) criticalMisses.push("結果判定の取り違え");
+
+    // critical 指定のフィールドが外れたら、総合点に埋もれないよう別枠で警告する。
+    // 旧実装は kind === "FN" だけを見ていたが、FN は真偽値項目（scoreBool）でしか
+    // 発生しない。そのため date のような項目は critical を付けても警告されず、
+    // result だけが個別のif文で救われている状態だった。
+    // 「critical なフィールドが0点なら警告」に一般化して、型に依存しないようにする。
+    if (spec.critical) {
+      if (r.kind === "FN") criticalMisses.push(spec.label + "の見逃し");
+      else if (r.score === 0) criticalMisses.push(spec.label + "の取り違え");
+    }
   }
   return { id: truth.id, scorePct: total ? Math.round((earned / total) * 100) : 0, perField, criticalMisses };
 }
