@@ -46,6 +46,9 @@ const argOf = (name, fallback) => {
 const RUNS = Number(argOf("runs", "10"));
 const MODEL_ID = argOf("model", MODEL);
 const PROMPT_PATH = argOf("prompt", null); // null なら本番と同じプロンプト
+// 特定ケースだけ多数回まわして安定性を確かめたいとき用（例: --cases=v10 --runs=30）。
+// 「10回で8/10」がブレなのか実力なのかは、10回では分からないため。
+const CASE_FILTER = argOf("cases", null);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -92,7 +95,13 @@ async function main() {
     process.exit(2);
   }
 
-  const cases = parseCases(readFileSync(join(HERE, "..", "eval-cases.json"), "utf8"));
+  let cases = parseCases(readFileSync(join(HERE, "..", "eval-cases.json"), "utf8"));
+  if (CASE_FILTER) {
+    const wanted = CASE_FILTER.split(",").map((s) => s.trim()).filter(Boolean);
+    const missing = wanted.filter((id) => !cases.some((c) => c.id === id));
+    if (missing.length) throw new Error(`ケースが見つかりません: ${missing.join(", ")}`);
+    cases = cases.filter((c) => wanted.includes(c.id));
+  }
   const { fn: makePrompt, label: promptLabel } = await resolveBuildPrompt();
 
   console.log(`モデル     : ${MODEL_ID}`);
