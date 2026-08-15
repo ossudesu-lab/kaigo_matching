@@ -1,7 +1,8 @@
 {
   "version": "2.0",
   "name": "記録抽出eval 正解データ",
-  "note": "介護記録文から8フィールドを抽出するevalの正解データ。ケース追加は cases に1件足すだけ（アプリのコード変更は不要）。s系=基本、t系=意地悪、u系=担当ケアマネ(staff)関連の意地悪。",
+  "note": "介護記録文から8フィールドを抽出するevalの正解データ。ケース追加は cases に1件足すだけ（アプリのコード変更は不要）。s系=基本、t系=意地悪、u系=担当ケアマネ(staff)関連の意地悪、v系=未知ケース(heldOut)。",
+  "heldOutNote": "heldOut:true のケースは、現行プロンプト(api/_lib/extract-prompt.js)を作ったあとに追加したもの。プロンプトのチューニングには一切使っていない。開発用(s/t/u)のスコアは『作り込んだケースで正解できるか』を、heldOutのスコアは『未知の記録文に通用するか』を示す。heldOutケースを見てプロンプトを直した場合、そのケースは開発用に格下げし、新しいheldOutを別途用意すること。さもないと同じ過学習を繰り返す。",
   "fields": ["date", "kyotaku", "staff", "care", "medical", "result", "trouble", "discrepancy"],
   "cases": [
     {
@@ -87,6 +88,77 @@
       "intent": "staff意地悪：担当者絡みのトラブル（提供表に勝手に予約）。staffとtroubleを両方拾えるか",
       "record": "7/5 あおぞら居宅の鈴木さん。要介護2。事前の電話連絡がなく、提供表に予約が入った状態で送られてきて発覚。確認の手間がかかった。利用者の状態自体は事前情報どおり。継続は未確定。",
       "truth": { "date": "2026-07-05", "kyotaku": "あおぞら居宅", "staff": "鈴木", "care": "要介護2", "medical": false, "result": "watch", "trouble": true, "discrepancy": false }
+    },
+
+    {
+      "id": "v1",
+      "heldOut": true,
+      "intent": "未知：日付が和暦。プロンプトに和暦の指示は無い",
+      "record": "令和8年7月10日 あおぞら居宅介護支援の佐藤さんより紹介。要介護2。特変なく経過。定期利用の見込み。",
+      "truth": { "date": "2026-07-10", "kyotaku": "あおぞら居宅介護支援", "staff": "佐藤", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v2",
+      "heldOut": true,
+      "intent": "未知：日付が期間。開始日を取る（月別集計の軸が開始日のため）",
+      "record": "7/14〜7/16 みなと居宅の高橋さんより、要介護3の方。3日間ご利用。事前情報どおりで問題なし。定期利用となる見込み。",
+      "truth": { "date": "2026-07-14", "kyotaku": "みなと居宅", "staff": "高橋", "care": "要介護3", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v3",
+      "heldOut": true,
+      "intent": "未知：服薬管理は medical に含めない。よほど自立の人でない限り服薬は施設管理が通常のため",
+      "record": "7/18 そよかぜ居宅の田村さん。要介護2。内服薬の管理をこちらで行った。看護師の特別な処置は不要。落ち着いて過ごされた。定期利用。",
+      "truth": { "date": "2026-07-18", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v4",
+      "heldOut": true,
+      "intent": "未知：経管栄養。プロンプトの例示4つ（インスリン・点滴・痰吸引・褥瘡処置）に無い処置を拾えるか",
+      "record": "7/20 やまびこケアプランの中村さんより、要介護4。胃ろうからの経管栄養あり、看護師が対応。事前情報と相違なし。定期利用を継続。",
+      "truth": { "date": "2026-07-20", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護4", "medical": true, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v5",
+      "heldOut": true,
+      "intent": "未知：軽い方向のズレは discrepancy に含めない。楽な方に違うのは現場が困らないため",
+      "record": "7/22 みなと居宅の高橋さん、要介護4。かなり手がかかると聞いていたが、実際はご自身でできることが多く、想定より負担は軽かった。定期利用の見込み。",
+      "truth": { "date": "2026-07-22", "kyotaku": "みなと居宅", "staff": "高橋", "care": "要介護4", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v6",
+      "heldOut": true,
+      "intent": "未知：担当交代。後任を取る（今後の連絡窓口であり実績も後任に積むため）。フルネームから姓のみ正規化も兼ねる",
+      "record": "7/24 あおぞら居宅介護支援より紹介。担当が佐藤一郎さんから鈴木花子さんに交代したとのこと。要介護2。特変なし。定期利用。",
+      "truth": { "date": "2026-07-24", "kyotaku": "あおぞら居宅介護支援", "staff": "鈴木", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v7",
+      "heldOut": true,
+      "intent": "未知：認定申請中。「暫定で要介護2相当」は確定でないので care は空",
+      "record": "7/26 新規の居宅から相談。要介護認定を申請中で、結果待ちとのこと。暫定で要介護2相当と想定。受け入れ可否は検討中。",
+      "truth": { "date": "2026-07-26", "kyotaku": "", "staff": "", "care": "", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "v8",
+      "heldOut": true,
+      "intent": "未知：利用者間のトラブル。既存の職員間対立(s6)・送迎ミス(t2)と別の型",
+      "record": "7/28 そよかぜ居宅の田村さん、要介護3。ご本人は落ち着いていたが、他の利用者との間で言い争いがあり、席を分ける対応をした。事前情報どおり。継続は様子見。",
+      "truth": { "date": "2026-07-28", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護3", "medical": false, "result": "watch", "trouble": true, "discrepancy": false }
+    },
+    {
+      "id": "v9",
+      "heldOut": true,
+      "intent": "未知：食い違い＋トラブル＋単発の複合。持参薬の『薬』に釣られて medical を立てない",
+      "record": "7/30 みなと居宅の山本さん、要介護3。穏やかで自立度も高いと聞いていたが、実際は移乗に2名介助が必要で、夜間も頻回にコールがあった。加えて、事前に伝えられていなかった内服薬が持参物に含まれており、確認に時間を要した。今回は単発で終了。",
+      "truth": { "date": "2026-07-30", "kyotaku": "みなと居宅", "staff": "山本", "care": "要介護3", "medical": false, "result": "single", "trouble": true, "discrepancy": true }
+    },
+    {
+      "id": "v10",
+      "heldOut": true,
+      "intent": "未知：日付の記載が一切ない。「年が無ければ2026年」に引きずられて日付を捏造しないか",
+      "record": "居宅から電話で問い合わせ。詳細はこれから確認するとのこと。",
+      "truth": { "date": "", "kyotaku": "", "staff": "", "care": "", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
     }
   ]
 }
