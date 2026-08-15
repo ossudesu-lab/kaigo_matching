@@ -57,7 +57,10 @@ export function parseCases(jsonText) {
     if (!c.id || !c.record || !c.truth) {
       throw new Error(`ケース ${c.id ?? "?"} に id / record / truth が揃っていません`);
     }
-    return { id: c.id, record: c.record, intent: c.intent ?? "", ...c.truth };
+    // heldOut: プロンプト開発に使っていない「未知ケース」の印。
+    // 採点自体には影響しない（scoreCase は FIELD_SPEC のキーしか見ない）。
+    // 集計を「開発用」と「未知」に分けるためだけに使う。
+    return { id: c.id, record: c.record, intent: c.intent ?? "", heldOut: c.heldOut === true, ...c.truth };
   });
 }
 

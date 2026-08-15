@@ -46,6 +46,9 @@ const argOf = (name, fallback) => {
 const RUNS = Number(argOf("runs", "10"));
 const MODEL_ID = argOf("model", MODEL);
 const PROMPT_PATH = argOf("prompt", null); // null なら本番と同じプロンプト
+// 特定ケースだけ多数回まわして安定性を確かめたいとき用（例: --cases=v10 --runs=30）。
+// 「10回で8/10」がブレなのか実力なのかは、10回では分からないため。
+const CASE_FILTER = argOf("cases", null);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -92,7 +95,13 @@ async function main() {
     process.exit(2);
   }
 
-  const cases = parseCases(readFileSync(join(HERE, "..", "eval-cases.json"), "utf8"));
+  let cases = parseCases(readFileSync(join(HERE, "..", "eval-cases.json"), "utf8"));
+  if (CASE_FILTER) {
+    const wanted = CASE_FILTER.split(",").map((s) => s.trim()).filter(Boolean);
+    const missing = wanted.filter((id) => !cases.some((c) => c.id === id));
+    if (missing.length) throw new Error(`ケースが見つかりません: ${missing.join(", ")}`);
+    cases = cases.filter((c) => wanted.includes(c.id));
+  }
   const { fn: makePrompt, label: promptLabel } = await resolveBuildPrompt();
 
   console.log(`モデル     : ${MODEL_ID}`);
@@ -100,7 +109,7 @@ async function main() {
   console.log(`ケース     : ${cases.length}件 / 実行 ${RUNS}回（計 ${cases.length * RUNS} リクエスト）`);
   console.log("");
 
-  const runs = [];
+  const runsPreds = []; // 実行ごとの予測。採点は最後にまとめて行う（開発用/未知で複数回集計するため）
   const latencies = []; // 1リクエストあたりの所要ms（再試行が入った分も込み＝実際にかかった時間）
   let failedRuns = 0;
   const startedAt = Date.now();
@@ -115,7 +124,7 @@ async function main() {
         latencies.push(Date.now() - t0);
         preds.push({ id: c.id, ...out });
       }
-      runs.push(scoreEval(preds, cases));
+      runsPreds.push(preds);
     } catch (e) {
       failedRuns++;
       console.error(`\n  ${r + 1}回目は失敗のため除外: ${e.message}`);
@@ -123,17 +132,30 @@ async function main() {
   }
   process.stdout.write("\r" + " ".repeat(50) + "\r");
 
-  if (runs.length === 0) {
+  if (runsPreds.length === 0) {
     console.error("全ての実行が失敗しました。APIキー・ネットワーク・モデル名を確認してください。");
     process.exit(1);
   }
 
+  // 開発用（プロンプトのチューニングに使ったケース）と未知（heldOut）を分けて集計する。
+  // 全体スコアは「作り込んだケース込み」の数字なので、汎化性能を語るときは未知の方を見ること。
+  const devCases = cases.filter((c) => !c.heldOut);
+  const heldCases = cases.filter((c) => c.heldOut);
+
+  const runs = runsPreds.map((p) => scoreEval(p, cases));
   const stat = statFor(runs, cases);
+  const statDev = devCases.length ? statFor(runsPreds.map((p) => scoreEval(p, devCases)), devCases) : null;
+  const statHeld = heldCases.length ? statFor(runsPreds.map((p) => scoreEval(p, heldCases)), heldCases) : null;
   const completionRate = runs.length / RUNS;
 
   // ---- 総合 ----
   console.log("─".repeat(52));
   console.log(`総合スコア   平均 ${stat.avg}  （最低 ${stat.min} / 最高 ${stat.max}）`);
+  if (statHeld && statDev) {
+    // 全体スコアは作り込んだケースを含むので高く出る。汎化性能は「未知」の行を見ること。
+    console.log(`  ├ 開発用   平均 ${statDev.avg}  （${devCases.length}件・プロンプト作成に使用）`);
+    console.log(`  └ 未知     平均 ${statHeld.avg}  （${heldCases.length}件・作成後に追加）← 汎化性能`);
+  }
   console.log(`重大な見逃し 平均 ${stat.cmAvg.toFixed(1)} 件/回  ${stat.cmAvg > 0 ? "⚠" : "✓"}`);
   console.log(`完走率       ${runs.length}/${RUNS} (${Math.round(completionRate * 100)}%)`);
 
@@ -169,7 +191,12 @@ async function main() {
 
   // ---- ケース別の安定性 ----
   console.log("\nケース別の安定性（毎回満点でないケース＝判断がブレる要注意ポイント）");
+  let heldHeaderPrinted = false;
   for (const c of cases) {
+    if (c.heldOut && !heldHeaderPrinted) {
+      console.log("  ── ここから未知ケース（プロンプト作成後に追加。汎化性能を見る） ──");
+      heldHeaderPrinted = true;
+    }
     const s = stat.perCase[c.id];
     const stable = s.perfect === s.n;
     console.log(
