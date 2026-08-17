@@ -137,6 +137,12 @@ node scripts/smoke-test.js --url=https://kaigomatching.vercel.app   # デプロ�
 
 運用ルールの詳細は [CLAUDE.md](CLAUDE.md) の「eval の運用ルール」を参照。
 
+### 経緯
+
+このevalを作る過程と、そこで踏んだ落とし穴は Zenn にまとめた。
+
+- [プロンプト改善を「1回の満点」で判断してはいけない ─ 10回回して分かったこと](https://zenn.dev/ossudesu/articles/zenn-eval-article)
+
 ## セキュリティ上の注意（やったこと・やらなかったこと）
 
 個人ポートフォリオのデモとして公開する前提での対策。詳細は [DEPLOY.md](DEPLOY.md) を参照。
