@@ -139,9 +139,12 @@ node scripts/smoke-test.js --url=https://kaigomatching.vercel.app   # デプロ�
 
 ### 経緯
 
-このevalを作る過程と、そこで踏んだ落とし穴は Zenn にまとめた。
+このevalを作る過程と、そこで踏んだ落とし穴は Zenn に2本にまとめた。
 
-- [プロンプト改善を「1回の満点」で判断してはいけない ─ 10回回して分かったこと](https://zenn.dev/ossudesu/articles/zenn-eval-article)
+1. [プロンプト改善を「1回の満点」で判断してはいけない ─ 10回回して分かったこと](https://zenn.dev/ossudesu/articles/zenn-eval-article)
+   evalを自作し、1回の満点が運だったと分かるまで
+2. [evalは満点だった。本番は利用日を1件も取れていなかった](https://zenn.dev/ossudesu/articles/zenn-eval-heldout-article)
+   その満点が本番を測っていなかった話と、未知ケース（heldOut）での測り直し
 
 ## セキュリティ上の注意（やったこと・やらなかったこと）
 
