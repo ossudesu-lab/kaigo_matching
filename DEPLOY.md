@@ -85,26 +85,37 @@ vercel --prod        # 本番デプロイ
 **デプロイ後、Vercel のダッシュボード → Settings → Environment Variables で
 `ANTHROPIC_API_KEY` を必ず設定する**（設定後に再デプロイ）。
 
-### Git連携は無い（2026-08 時点）
+### Git連携（2026-08 接続）
 
-**VercelプロジェクトにGitHubリポジトリは接続されていない。** そのため:
+Vercelプロジェクトに GitHub リポジトリ `ossudesu-lab/kaigo_matching` を接続済み。
 
-- ブランチを push しても Preview は作られない
-- **`main` にマージしても本番には反映されない**
-- 本番反映は `vercel --prod` を手動実行したときだけ起きる
+- ブランチを push → **Preview が自動作成される**
+- `main` にマージ → **本番へ自動デプロイ**
+- **`vercel --prod` の手動実行は不要**
 
-`main` と本番を一致させるため、必ずこの順で行うこと:
+接続前は手動デプロイのみで、「マージしたのに本番に反映されていない」という
+取り違えが実際に起きた。その状態に戻さないこと。
+
+#### GitHub App のアクセス範囲
+
+Vercel の GitHub App は **Only select repositories** で `kaigo_matching` のみに
+許可している。同一アカウントに private リポジトリ（`zenn-content`）があるため、
+All repositories は選んでいない。
+
+別のリポジトリを Vercel で動かすときは、GitHub → Settings → Applications →
+Vercel → Configure から**追加が必要**。追加を忘れると「push してもデプロイ
+されない」という形で現れるので、その症状が出たらまずここを見る。
+
+#### 手動デプロイが必要なとき
+
+連携が切れている場合や、ローカルの作業ツリーをそのまま上げたい場合のみ:
 
 ```
-PRをマージ → git checkout main → git pull origin main → vercel --prod
+git checkout main && git pull origin main && vercel --prod
 ```
 
 ブランチのまま `vercel --prod` すると「本番で動いているコード ≠ `main`」になり、
-後から何が動いているか分からなくなる。
-
-（連携すれば push で自動Preview・マージで自動本番デプロイになる。
-Settings → Git → Connect Git Repository。ただし連携直後に `main` の内容で
-本番デプロイが走るため、**マージを済ませてから連携する**こと）
+後から何が動いているか分からなくなるので避けること。
 
 ### URL
 
