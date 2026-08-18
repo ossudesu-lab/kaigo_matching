@@ -52,6 +52,11 @@ const CASE_FILTER = argOf("cases", null);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 進捗表示は端末のときだけ出す。CI のログでは \r が展開されて
+// 1行ごとに残り、結果が埋もれるため。
+const isTTY = Boolean(process.stdout.isTTY);
+const progress = (s) => { if (isTTY) process.stdout.write(s); };
+
 // --prompt が指定されていればそのモジュールの buildPrompt を使う。
 // 比較したいのはプロンプトの中身なので、差し替えはここ1箇所に閉じる。
 async function resolveBuildPrompt() {
@@ -118,7 +123,7 @@ async function main() {
     try {
       const preds = [];
       for (const c of cases) {
-        process.stdout.write(`\r  ${r + 1}/${RUNS}回目  ${preds.length + 1}/${cases.length}ケース…   `);
+        progress(`\r  ${r + 1}/${RUNS}回目  ${preds.length + 1}/${cases.length}ケース…   `);
         const t0 = Date.now();
         const out = await extractSafe(c.record, makePrompt);
         latencies.push(Date.now() - t0);
@@ -130,7 +135,7 @@ async function main() {
       console.error(`\n  ${r + 1}回目は失敗のため除外: ${e.message}`);
     }
   }
-  process.stdout.write("\r" + " ".repeat(50) + "\r");
+  progress("\r" + " ".repeat(50) + "\r");
 
   if (runsPreds.length === 0) {
     console.error("全ての実行が失敗しました。APIキー・ネットワーク・モデル名を確認してください。");
