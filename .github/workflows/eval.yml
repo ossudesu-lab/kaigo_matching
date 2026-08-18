@@ -1,0 +1,86 @@
+name: eval
+
+# 記録抽出evalをPRで自動実行する。
+#
+# 目的は「壊れていないかの検知」と「スコアを記録に残すこと」であって、
+# 数字を確定させることではない。確定させたいときは手元で --runs=10 を回す。
+#
+# 落とす条件は完走率のみ（scripts/eval-extract.js が終了コード1を返す）。
+# スコアでは落とさない。3回の実行はケース単位ではよく振れるため、
+# 閾値を置くと正当な変更でも落ちてオオカミ少年になる。
+# 実例: 同じプロンプトのまま v6 が 10/10 → 7/10 と振れ、30回で約50%失敗が実態だった。
+# 閾値はデータが溜まってから検討する。
+
+on:
+  # プロンプト・正解データ・eval本体が変わったPRでだけ走らせる。
+  # ドキュメントだけの変更でAPI課金が発生しないようにするため。
+  pull_request:
+    paths:
+      - "api/_lib/extract-prompt.js"
+      - "eval-cases.json"
+      - "scripts/**"
+      - ".github/workflows/eval.yml"
+  # 手動実行もできるようにしておく
+  workflow_dispatch:
+
+# 同じPRに続けてpushしたとき、古い実行を打ち切る。無駄な課金を防ぐため。
+concurrency:
+  group: eval-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  extract-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # npm install は不要。evalは Node 組み込みの fetch しか使っておらず、
+      # package.json の react / vite には依存していない。
+
+      - name: eval を実行（3回）
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          node scripts/eval-extract.js --runs=3 2>&1 | tee eval-output.txt
+
+      - name: 結果をPRにコメント
+        # evalが落ちたときこそ結果を見たいので always
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MARKER="<!-- extract-eval-result -->"
+          {
+            echo "$MARKER"
+            echo "## 記録抽出eval（3回実行）"
+            echo ""
+            echo '```'
+            cat eval-output.txt 2>/dev/null || echo "(出力なし。実行前に失敗した可能性があります)"
+            echo '```'
+            echo ""
+            echo "コミット: \`$SHA\`"
+            echo ""
+            echo "> 3回はCI用の回数。数字を確定させるときは手元で \`--runs=10\`。"
+            echo "> ケース単位で改善・劣化を判断するには \`--cases=<id> --runs=30\` が必要。"
+          } > comment.md
+
+          # 同じPRに既にコメントがあれば書き換える（pushのたびに増やさない）
+          ID=$(gh api "repos/$REPO/issues/$PR/comments" \
+                --jq "[.[] | select(.body | startswith(\"$MARKER\")) | .id] | first // empty")
+          if [ -n "$ID" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@comment.md
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md
+          fi
