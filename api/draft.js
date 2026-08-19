@@ -7,7 +7,7 @@
 // 否定制約が多く崩れやすいタスクなので、Haiku に落とすなら必ず連絡文evalを
 // 通してから（複数回・完走率90%以上・criticalMiss確認）。
 
-import { callAnthropic } from "./_lib/anthropic.js";
+import { callLLM } from "./_lib/llm.js";
 import { checkRateLimit, getClientIp } from "./_lib/ratelimit.js";
 
 const MODEL = process.env.MODEL_DRAFT || "claude-sonnet-4-6";
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const out = await callAnthropic(buildPrompt({ name, staff, when, needMedical, sender }), MODEL);
+    const out = await callLLM(buildPrompt({ name, staff, when, needMedical, sender }), MODEL);
     if (!out) {
       res.status(502).json({ error: "連絡文の生成に失敗しました。" });
       return;

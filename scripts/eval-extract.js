@@ -28,7 +28,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-import { callAnthropic } from "../api/_lib/anthropic.js";
+import { callLLM, isLocal } from "../api/_lib/llm.js";
 import { MODEL, buildPrompt } from "../api/_lib/extract-prompt.js";
 import { parseCases, scoreEval, statFor, FIELD_SPEC } from "./eval-scoring.js";
 import { appendRun, loadHistory, printPreflight, summarize, costUSD, yen } from "./eval-usage.js";
@@ -92,7 +92,7 @@ async function extractSafe(record, makePrompt) {
   let lastError;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
-      const raw = await callAnthropic(makePrompt(record, { year: EVAL_YEAR }), MODEL_ID, recordUsage);
+      const raw = await callLLM(makePrompt(record, { year: EVAL_YEAR }), MODEL_ID, recordUsage);
       return JSON.parse(raw.replace(/```json|```/g, "").trim());
     } catch (e) {
       lastError = e;
@@ -142,6 +142,7 @@ async function main() {
   const startedAt = Date.now();
 
   for (let r = 0; r < RUNS; r++) {
+    const runStarted = Date.now();
     try {
       const preds = [];
       for (const c of cases) {
@@ -152,6 +153,13 @@ async function main() {
         preds.push({ id: c.id, ...out });
       }
       runsPreds.push(preds);
+      // 端末なら上の \r 表示で進捗が見えるが、CIやバックグラウンド実行では
+      // 完了まで何も出ない。ローカルLLMだと1周に30分かかることもあり、
+      // 生きているのか分からなくなるため、1周ごとに1行だけ残す。
+      // 1件ごとに出すとログが荒れるので、粒度は「周」に留める。
+      if (!isTTY) {
+        console.log(`  ${r + 1}/${RUNS}回目 完了（${cases.length}件・${((Date.now() - runStarted) / 1000 / 60).toFixed(1)}分）`);
+      }
     } catch (e) {
       failedRuns++;
       console.error(`\n  ${r + 1}回目は失敗のため除外: ${e.message}`);

@@ -9,7 +9,7 @@
 // 未検証の仮定なので、scripts/eval-extract.js で実測してから判断すること
 // （DEPLOY.md の「モデルを変えるとき」の運用ルールに従う）。
 
-import { callAnthropic } from "./_lib/anthropic.js";
+import { callLLM } from "./_lib/llm.js";
 import { checkRateLimit, getClientIp } from "./_lib/ratelimit.js";
 import { MODEL, buildPrompt } from "./_lib/extract-prompt.js";
 
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const out = await callAnthropic(buildPrompt(text), MODEL);
+    const out = await callLLM(buildPrompt(text), MODEL);
     res.status(200).json({ text: out });
   } catch (e) {
     console.error("extract error:", e);
