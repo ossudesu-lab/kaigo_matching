@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "name": "記録抽出eval 正解データ",
-  "note": "介護記録文から8フィールドを抽出するevalの正解データ。ケース追加は cases に1件足すだけ（アプリのコード変更は不要）。s系=基本、t系=意地悪、u系=担当ケアマネ(staff)関連の意地悪、v系=未知ケース(heldOut)。",
+  "note": "介護記録文から8フィールドを抽出するevalの正解データ。ケース追加は cases に1件足すだけ（アプリのコード変更は不要）。s系=基本、t系=意地悪、u系=担当ケアマネ(staff)関連の意地悪、v系/w系=未知ケース(heldOut)。",
   "heldOutNote": "heldOut:true のケースは、現行プロンプト(api/_lib/extract-prompt.js)を作ったあとに追加したもの。プロンプトのチューニングには一切使っていない。開発用(s/t/u)のスコアは『作り込んだケースで正解できるか』を、heldOutのスコアは『未知の記録文に通用するか』を示す。heldOutケースを見てプロンプトを直した場合、そのケースは開発用に格下げし、新しいheldOutを別途用意すること。さもないと同じ過学習を繰り返す。",
   "fields": ["date", "kyotaku", "staff", "care", "medical", "result", "trouble", "discrepancy"],
   "cases": [
@@ -25,9 +25,9 @@
     },
     {
       "id": "s4",
-      "intent": "重要：食い違い＋トラブル＋単発終了",
+      "intent": "重要：食い違い＋単発終了。混乱は食い違いの結果なので trouble は false（2026-08 に true から変更）。同じ出来事を信用スコアとトラブル率の両方に数えると、一度のミスで居宅の評価が二重に落ちるため",
       "record": "6/5 みなと居宅介護支援の高橋さん紹介、要介護4。事前の申し送りと実際の様子がかなり違い、夜間対応が想定より重かった。現場が混乱し、今回は単発で終了。",
-      "truth": { "date": "2026-06-05", "kyotaku": "みなと居宅介護支援", "staff": "高橋", "care": "要介護4", "medical": false, "result": "single", "trouble": true, "discrepancy": true }
+      "truth": { "date": "2026-06-05", "kyotaku": "みなと居宅介護支援", "staff": "高橋", "care": "要介護4", "medical": false, "result": "single", "trouble": false, "discrepancy": true }
     },
     {
       "id": "s5",
@@ -37,9 +37,9 @@
     },
     {
       "id": "s6",
-      "intent": "基本：医療対応＋スタッフ間トラブル＋様子見",
+      "intent": "基本：医療対応＋様子見。スタッフ間の対立は自施設側の問題なので trouble は false（2026-08 に true から変更。トラブル率は紹介元の評価指標であり、自施設の落ち度を数えると指標が濁るため）",
       "record": "6/13 やまびこケアプランの中村さん、要介護2。痰吸引あり看護師対応。ただし夜間ケアの進め方でスタッフ間の対立があり、現場が不安定。継続するかは未確定で様子見。",
-      "truth": { "date": "2026-06-13", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護2", "medical": true, "result": "watch", "trouble": true, "discrepancy": false }
+      "truth": { "date": "2026-06-13", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護2", "medical": true, "result": "watch", "trouble": false, "discrepancy": false }
     },
     {
       "id": "t1",
@@ -49,9 +49,9 @@
     },
     {
       "id": "t2",
-      "intent": "意地悪：トラブル≠食い違い。混同しないか",
+      "intent": "意地悪：送迎の手配ミスは自施設側の問題なので trouble は false、食い違いも false（2026-08 に trouble を true から変更）。「混乱した」という語に反応せず起因を見分けられるか",
       "record": "6/22 みなと居宅の山本さん、要介護4。事前情報通り穏やかな方だったが、送迎車の手配ミスで到着が大幅に遅れ、現場が一時混乱した。利用者本人の状態は問題なし。継続利用の予定。",
-      "truth": { "date": "2026-06-22", "kyotaku": "みなと居宅", "staff": "山本", "care": "要介護4", "medical": false, "result": "regular", "trouble": true, "discrepancy": false }
+      "truth": { "date": "2026-06-22", "kyotaku": "みなと居宅", "staff": "山本", "care": "要介護4", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
     },
     {
       "id": "t3",
@@ -142,9 +142,9 @@
     {
       "id": "v8",
       "heldOut": true,
-      "intent": "未知：利用者間のトラブル。既存の職員間対立(s6)・送迎ミス(t2)と別の型",
+      "intent": "未知：利用者どうしのいさかい。事前情報どおり＝居宅は伝えるべき情報を伝えているので trouble は false（2026-08 に true から変更）",
       "record": "7/28 そよかぜ居宅の田村さん、要介護3。ご本人は落ち着いていたが、他の利用者との間で言い争いがあり、席を分ける対応をした。事前情報どおり。継続は様子見。",
-      "truth": { "date": "2026-07-28", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護3", "medical": false, "result": "watch", "trouble": true, "discrepancy": false }
+      "truth": { "date": "2026-07-28", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護3", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
     },
     {
       "id": "v9",
@@ -159,6 +159,84 @@
       "intent": "開発用（元は未知）：日付の記載が一切ない。修正前・修正後どちらのプロンプトでも30回中1〜3回は日付を捏造していたため、date の指示を明確化した。その修正に使ったので未知から格下げ",
       "record": "居宅から電話で問い合わせ。詳細はこれから確認するとのこと。",
       "truth": { "date": "", "kyotaku": "", "staff": "", "care": "", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
+    },
+
+    {
+      "id": "w1",
+      "heldOut": true,
+      "intent": "未知：予約段階の記録。利用予定日を date に取り、result は watch（まだ利用していないため）",
+      "record": "8/5 みなと居宅の高橋さんから、要介護3の方の利用予約が入った。実際のご利用はこれから。",
+      "truth": { "date": "2026-08-05", "kyotaku": "みなと居宅", "staff": "高橋", "care": "要介護3", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w2",
+      "heldOut": true,
+      "intent": "未知：区分変更。文中に要介護度が2つ出るが、変更後（現在の状態）を取る",
+      "record": "7/8 あおぞら居宅の佐藤さん。区分変更で要介護2から要介護3になったとのこと。特変なく経過。定期利用。",
+      "truth": { "date": "2026-07-08", "kyotaku": "あおぞら居宅", "staff": "佐藤", "care": "要介護3", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w3",
+      "heldOut": true,
+      "intent": "未知：医療処置が過去の話。「インスリン」の語に釣られない。かつ内服は medical に含めないルールとの複合",
+      "record": "7/9 やまびこケアプランの中村さん、要介護3。以前はインスリン対応があったが、現在は内服のみに変更済み。特変なし。定期利用。",
+      "truth": { "date": "2026-07-09", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護3", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w4",
+      "heldOut": true,
+      "intent": "未知：法人格つきの事業所名。記録どおりに取る（抽出側で正規化しても表記ゆれの割れは解決しないため。割れの解消は集計側の課題）",
+      "record": "7/11 株式会社さくらケア 居宅介護支援事業所の田村さんより紹介。要介護2。事前情報どおり。定期利用。",
+      "truth": { "date": "2026-07-11", "kyotaku": "株式会社さくらケア 居宅介護支援事業所", "staff": "田村", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w5",
+      "heldOut": true,
+      "intent": "未知：居宅が2つ登場する。kyotaku は紹介元のみ。打診先に引っ張られない",
+      "record": "7/15 みなと居宅の高橋さんから紹介。あおぞら居宅にも同時に打診しているとのこと。要介護3。特変なし。定期利用。",
+      "truth": { "date": "2026-07-15", "kyotaku": "みなと居宅", "staff": "高橋", "care": "要介護3", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w6",
+      "heldOut": false,
+      "intent": "開発用（元は未知）：ご家族からの苦情のみ。事前に伝えられるべき情報だったとは読めないので trouble は false。このケースと w11 の不合格を見て trouble の判定基準を書き換えたため未知から格下げ",
+      "record": "7/17 そよかぜ居宅の田村さん、要介護4。ご利用中は落ち着いていたが、送迎時間についてご家族から強い苦情があった。事前情報どおり。継続は様子見。",
+      "truth": { "date": "2026-07-17", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護4", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w7",
+      "heldOut": true,
+      "intent": "未知：トラブルは前回の話で今回は無い。「行き違い」の語に釣られない（時制の判定）",
+      "record": "7/19 あおぞら居宅の鈴木さん、要介護2。前回は連絡の行き違いがあったが、今回は事前連絡も丁寧で問題なし。定期利用。",
+      "truth": { "date": "2026-07-19", "kyotaku": "あおぞら居宅", "staff": "鈴木", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w8",
+      "heldOut": false,
+      "intent": "開発用（元は未知）：医療情報についての食い違い。discrepancy は true だが、服薬管理なので medical は false、かつ手間はズレの結果なので trouble も false。このケースと s4 の不一致から discrepancy と trouble の排他ルールを明文化したため未知から格下げ",
+      "record": "7/21 みなと居宅の山本さん、要介護3。服薬はないと聞いていたが、実際は5種類の内服があり、管理に手間がかかった。定期利用は継続。",
+      "truth": { "date": "2026-07-21", "kyotaku": "みなと居宅", "staff": "山本", "care": "要介護3", "medical": false, "result": "regular", "trouble": false, "discrepancy": true }
+    },
+    {
+      "id": "w9",
+      "heldOut": true,
+      "intent": "未知：継続の希望はあるが確定していない。「希望」に釣られて regular にせず watch",
+      "record": "7/23 やまびこケアプランの中村さん、要介護2。ご家族は継続を希望しているが、こちらの空き状況次第で未定。特変なし。",
+      "truth": { "date": "2026-07-23", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護2", "medical": false, "result": "watch", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w10",
+      "heldOut": true,
+      "intent": "未知：日付が相対表現（昨日）。記録の作成日が分からない以上は特定できないので空。推測で埋めない",
+      "record": "昨日、そよかぜ居宅の田村さんより紹介。要介護2。特変なし。定期利用。",
+      "truth": { "date": "", "kyotaku": "そよかぜ居宅", "staff": "田村", "care": "要介護2", "medical": false, "result": "regular", "trouble": false, "discrepancy": false }
+    },
+    {
+      "id": "w11",
+      "heldOut": false,
+      "intent": "開発用（元は未知）：同じ家族の苦情でも、把握できたはずの情報が申し送られていなければ trouble は true。w6 と対で「苦情という語に反応しているだけか、起因を見分けているか」を測る。利用者本人の状態は事前情報どおりなので discrepancy は false。プロンプト修正に使ったため未知から格下げ",
+      "record": "7/25 みなと居宅の高橋さん、要介護3。送迎時間に厳しいご家族だと事前に把握できたはずだが申し送りがなく、当日に強い苦情を受けた。利用者本人の状態は事前情報どおり。継続は様子見。",
+      "truth": { "date": "2026-07-25", "kyotaku": "みなと居宅", "staff": "高橋", "care": "要介護3", "medical": false, "result": "watch", "trouble": true, "discrepancy": false }
     }
   ]
 }
