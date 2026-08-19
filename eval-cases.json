@@ -75,6 +75,7 @@
       "id": "u2",
       "intent": "staff意地悪：自施設の看護師名・利用者名に釣られないか。staffは居宅側の担当者のみ",
       "record": "7/3 やまびこケアプランの中村さんから、田中様（要介護4）のご利用。当施設の看護師・鈴木が対応し、痰吸引を実施。事前情報と相違なく、落ち着いて過ごされた。定期利用を継続。",
+      "piiNames": ["田中", "鈴木"],
       "truth": { "date": "2026-07-03", "kyotaku": "やまびこケアプラン", "staff": "中村", "care": "要介護4", "medical": true, "result": "regular", "trouble": false, "discrepancy": false }
     },
     {

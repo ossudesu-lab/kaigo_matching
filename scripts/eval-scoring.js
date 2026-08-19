@@ -60,7 +60,19 @@ export function parseCases(jsonText) {
     // heldOut: プロンプト開発に使っていない「未知ケース」の印。
     // 採点自体には影響しない（scoreCase は FIELD_SPEC のキーしか見ない）。
     // 集計を「開発用」と「未知」に分けるためだけに使う。
-    return { id: c.id, record: c.record, intent: c.intent ?? "", heldOut: c.heldOut === true, ...c.truth };
+    //
+    // piiNames: 抽出対象ではないが本文に出てくる固有名詞（利用者名・自施設職員名）。
+    // 抽出の正解ではないので採点には使わない。PIIマスキングの漏れ検査
+    // （scripts/pii-leak-check.js）でのみ参照する。
+    // staff / kyotaku だけを見ていたとき「当施設の看護師・鈴木」の見落としに気づけなかったため追加した。
+    return {
+      id: c.id,
+      record: c.record,
+      intent: c.intent ?? "",
+      heldOut: c.heldOut === true,
+      piiNames: Array.isArray(c.piiNames) ? c.piiNames : [],
+      ...c.truth,
+    };
   });
 }
 
