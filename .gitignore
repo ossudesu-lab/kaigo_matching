@@ -5,5 +5,8 @@ dist
 .env*.local
 *.log
 
+# evalのAPI利用量ログ。端末ごとの記録なのでコミットしない
+.eval-usage.jsonl
+
 .vercel
 .env*
