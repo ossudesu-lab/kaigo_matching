@@ -22,11 +22,17 @@ const PRICE = {
 // 円換算は目安。正確な請求額ではない。
 const USD_JPY = 150;
 
+/** ローカル実行（Ollama）は課金が発生しない。「単価不明」とは区別する。 */
+export function isFree(model) {
+  return typeof model === "string" && model.startsWith("ollama:");
+}
+
 export function priceOf(model) {
   return PRICE[model] ?? null;
 }
 
 export function costUSD(model, inputTokens, outputTokens) {
+  if (isFree(model)) return 0; // 施設内で動くので費用は電気代だけ
   const p = priceOf(model);
   if (!p) return null;
   return (inputTokens / 1e6) * p.in + (outputTokens / 1e6) * p.out;
@@ -81,9 +87,11 @@ export function printPreflight(history, model, requests) {
   const est = estimate(history, model, requests);
   const tot = summarize(history);
 
-  const estText = est.usd == null
-    ? "（このモデルの実績が無いため金額は不明）"
-    : `約 $${est.usd.toFixed(2)}（約${yen(est.usd)}円）／ 過去${est.basedOn}リクエストの実績から算出`;
+  const estText = isFree(model)
+    ? "**ローカル実行のため課金なし**"
+    : est.usd == null
+      ? "（このモデルの実績が無いため金額は不明）"
+      : `約 $${est.usd.toFixed(2)}（約${yen(est.usd)}円）／ 過去${est.basedOn}リクエストの実績から算出`;
   console.log(`今回の見積もり : ${requests} リクエスト・${estText}`);
 
   if (tot.runs === 0) {

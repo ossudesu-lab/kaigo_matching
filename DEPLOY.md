@@ -157,6 +157,33 @@ node scripts/smoke-test.js --url=https://kaigomatching.vercel.app
   （複数回・完走率90%以上・criticalMiss確認。CLAUDE.md の eval 運用ルール参照）。
 - 切替は Vercel の環境変数 `MODEL_DRAFT` / `MODEL_EXTRACT` を変えるだけ。コード変更不要。
 
+## ローカルLLM（Ollama）で動かす
+
+記録を外部APIに出せない事業所向けの経路。モデル名に `ollama:` を付けると
+Anthropic ではなくローカルの Ollama を呼ぶ（`api/_lib/llm.js` が振り分ける）。
+
+```bash
+ollama pull qwen2.5:7b
+MODEL_EXTRACT=ollama:qwen2.5:7b
+```
+
+| 環境変数 | 既定 | 内容 |
+| --- | --- | --- |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama の接続先 |
+
+- Vercel の関数からは localhost の Ollama に届かないので、**この経路は事業所内に
+  自前で立てる場合のみ**。公開中の `kaigomatching.vercel.app` では使えない。
+- evalも同じ切替で測れる（課金は発生しない）:
+
+  ```bash
+  node --env-file=.env scripts/eval-extract.js --model=ollama:qwen2.5:7b --runs=3
+  ```
+
+- **既定にはしない。** 35ケース×3回で総合96点まで届いたが、重大な見逃しが9件/回残る
+  （Haiku は0件）。1件あたり約42秒かかる点も含め、実測は README のモデル比較を参照。
+- 7B級はプロンプトの書き方で結果が変わる。ローカル向けの調整版を
+  `scripts/prompt-variants/local-7b.js` に置いてある（`--prompt=` で指定）。
+
 ## セキュリティ上の注意
 
 - レート制限（`api/_lib/ratelimit.js`）はインメモリのベストエフォート。
