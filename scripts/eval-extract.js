@@ -30,6 +30,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { callLLM, isLocal } from "../api/_lib/llm.js";
 import { MODEL, buildPrompt } from "../api/_lib/extract-prompt.js";
+import { maskRecord, restoreFields } from "../api/_lib/pii-mask.js";
 import { parseCases, scoreEval, statFor, FIELD_SPEC } from "./eval-scoring.js";
 import { appendRun, loadHistory, printPreflight, summarize, costUSD, yen } from "./eval-usage.js";
 
@@ -60,6 +61,9 @@ const PROMPT_PATH = argOf("prompt", null); // null なら本番と同じプロ�
 const CASE_FILTER = argOf("cases", null);
 // APIを叩かずに見積もりだけ出して終わる。大きく回す前に金額を確かめるため。
 const DRY_RUN = process.argv.slice(2).includes("--dry-run");
+// 本番と同じPIIマスキング（api/extract.js の MASK_PII=1）を通して測る。
+// 伏せて送ることで精度がいくら落ちるかは、実測しないと分からない。
+const MASK = process.argv.slice(2).includes("--mask");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,12 +92,16 @@ const recordUsage = (u) => {
 };
 
 // 1ケース分の抽出。JSON崩れ・一時的な通信エラーは最大3回まで再試行する。
+// --mask のときは本番（api/extract.js）と同じ手順で伏せて送り、戻してから採点する。
+// 辞書は渡さない。本番も辞書を持てないので、条件をそろえないと測る意味がないため。
 async function extractSafe(record, makePrompt) {
+  const { masked, mapping } = MASK ? maskRecord(record) : { masked: record, mapping: null };
   let lastError;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
-      const raw = await callLLM(makePrompt(record, { year: EVAL_YEAR }), MODEL_ID, recordUsage);
-      return JSON.parse(raw.replace(/```json|```/g, "").trim());
+      const raw = await callLLM(makePrompt(masked, { year: EVAL_YEAR }), MODEL_ID, recordUsage);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      return mapping ? restoreFields(parsed, mapping) : parsed;
     } catch (e) {
       lastError = e;
       if (attempt < 3) await sleep(800 * (attempt + 1));
@@ -123,6 +131,7 @@ async function main() {
   console.log(`モデル     : ${MODEL_ID}`);
   console.log(`プロンプト : ${promptLabel}`);
   console.log(`ケース     : ${cases.length}件 / 実行 ${RUNS}回（計 ${cases.length * RUNS} リクエスト）`);
+  if (MASK) console.log(`PIIマスク  : 有効（辞書なし・パターン検出のみ）`);
   console.log("");
 
   // 実行前に「今回いくらか」と「これまでいくら使ったか」を必ず出す。

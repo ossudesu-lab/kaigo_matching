@@ -30,6 +30,7 @@ api/
 | `ANTHROPIC_API_KEY` | ○ | Anthropic の APIキー。**Vercel の環境変数に入れる。コードにもGitにも入れない** |
 | `MODEL_EXTRACT` | — | 抽出のモデル。未設定なら `claude-haiku-4-5` |
 | `MODEL_DRAFT` | — | 連絡文のモデル。未設定なら `claude-sonnet-4-6` |
+| `MASK_PII` | — | `1` で氏名を仮IDに置き換えてから送る。未設定なら無効（下記） |
 
 ### Vercel の Sensitive 変数は読み出せない
 
@@ -156,6 +157,31 @@ node scripts/smoke-test.js --url=https://kaigomatching.vercel.app
 - 連絡文を Haiku に落とすかは、**必ず手元の連絡文evalをHaikuで回してから**判断する
   （複数回・完走率90%以上・criticalMiss確認。CLAUDE.md の eval 運用ルール参照）。
 - 切替は Vercel の環境変数 `MODEL_DRAFT` / `MODEL_EXTRACT` を変えるだけ。コード変更不要。
+
+## PIIマスキング（`MASK_PII`）
+
+`MASK_PII=1` にすると、記録文の氏名・事業所名を仮ID（`[人物1]` `[事業所1]`）に
+置き換えてから Anthropic に送り、返ってきた結果を戻す（`api/_lib/pii-mask.js`）。
+
+- **既定は無効。** 精度への影響を実測してから切り替えるという運用ルールに従う。
+  実測は「マスクあり99 / なし100」（Haiku・35ケース×3回）。
+- 伏せ漏れの検査は**API課金なし**で回せる:
+
+  ```bash
+  node scripts/pii-leak-check.js
+  ```
+
+- 精度への影響を測るときは eval に `--mask` を付ける:
+
+  ```bash
+  node --env-file=.env scripts/eval-extract.js --mask --runs=3
+  ```
+
+- **辞書は使っていない。** この関数はステートレスで辞書を持てず、クライアントから
+  辞書を送れば結局氏名を送ることになるため。パターン検出のみ。
+- **氏名を伏せても要配慮個人情報は本文に残る**（要介護度・医療処置など）。
+  「送る情報を減らす」措置であって「個人情報を送っていない」ことにはならない。
+  外に一切出せない場合は下のローカルLLMを使う。
 
 ## ローカルLLM（Ollama）で動かす
 
