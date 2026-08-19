@@ -10,6 +10,10 @@
 //   node --env-file=.env scripts/eval-extract.js --runs=3        # 3回
 //   node --env-file=.env scripts/eval-extract.js --model=claude-sonnet-5
 //   node --env-file=.env scripts/eval-extract.js --prompt=scripts/prompt-variants/baseline-v1.js
+//   node --env-file=.env scripts/eval-extract.js --runs=10 --dry-run   # 金額の見積もりだけ（APIは呼ばない）
+//
+// 実行前に「今回の見積もり」と「これまでの累計」を必ず表示する。
+// クレジットは本番アプリと共有しているため、使い切ると公開中のアプリが止まる（2026-08-19 に発生）。
 //
 //   （--env-file は Node 20.6 以降。使えない場合は環境変数を直接渡す）
 //   ANTHROPIC_API_KEY=sk-... node scripts/eval-extract.js
@@ -27,8 +31,13 @@ import { dirname, join, resolve } from "node:path";
 import { callAnthropic } from "../api/_lib/anthropic.js";
 import { MODEL, buildPrompt } from "../api/_lib/extract-prompt.js";
 import { parseCases, scoreEval, statFor, FIELD_SPEC } from "./eval-scoring.js";
+import { appendRun, loadHistory, printPreflight, summarize, costUSD, yen } from "./eval-usage.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+// API利用量の記録先。端末ごとの記録なのでコミットしない（.gitignore 済み）。
+// CI は毎回まっさらな環境で走るため、累計はローカルでの手動実行だけを追う。
+const USAGE_LOG = join(HERE, "..", ".eval-usage.jsonl");
 
 // 正解データ（eval-cases.json）の date は 2026年で固定されている。
 // 年を実行時の年にすると来年から全ケースの date が外れるため、evalでは年を固定する。
@@ -49,6 +58,8 @@ const PROMPT_PATH = argOf("prompt", null); // null なら本番と同じプロ�
 // 特定ケースだけ多数回まわして安定性を確かめたいとき用（例: --cases=v10 --runs=30）。
 // 「10回で8/10」がブレなのか実力なのかは、10回では分からないため。
 const CASE_FILTER = argOf("cases", null);
+// APIを叩かずに見積もりだけ出して終わる。大きく回す前に金額を確かめるため。
+const DRY_RUN = process.argv.slice(2).includes("--dry-run");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -114,6 +125,17 @@ async function main() {
   console.log(`ケース     : ${cases.length}件 / 実行 ${RUNS}回（計 ${cases.length * RUNS} リクエスト）`);
   console.log("");
 
+  // 実行前に「今回いくらか」と「これまでいくら使ったか」を必ず出す。
+  // 2026-08-19、累積を見ていなかったせいでクレジットが尽き、本番アプリが停止したため。
+  const history = loadHistory(USAGE_LOG);
+  printPreflight(history, MODEL_ID, cases.length * RUNS);
+  console.log("");
+
+  if (DRY_RUN) {
+    console.log("--dry-run のため、ここで終了します（APIは呼んでいません）。");
+    return;
+  }
+
   const runsPreds = []; // 実行ごとの予測。採点は最後にまとめて行う（開発用/未知で複数回集計するため）
   const latencies = []; // 1リクエストあたりの所要ms（再試行が入った分も込み＝実際にかかった時間）
   let failedRuns = 0;
@@ -177,11 +199,29 @@ async function main() {
     console.log(`実行時間     ${((Date.now() - startedAt) / 1000 / 60).toFixed(1)}分`);
   }
   if (usage.calls) {
-    // 単価はモデル・時期で変わるので、ここでは金額に換算せずトークン数だけ出す。
-    // 換算するときは公式の料金表を都度確認すること。
     console.log(
       `トークン     1件あたり 入力 ${Math.round(usage.input / usage.calls)} / 出力 ${Math.round(usage.output / usage.calls)}` +
-      `　（累計 入力 ${usage.input.toLocaleString()} / 出力 ${usage.output.toLocaleString()} ・ ${usage.calls}回）`
+      `　（今回 入力 ${usage.input.toLocaleString()} / 出力 ${usage.output.toLocaleString()} ・ ${usage.calls}回）`
+    );
+
+    // 完走率で落ちる場合でも、使った分は必ず記録する。金は既に出ているため。
+    const usd = costUSD(MODEL_ID, usage.input, usage.output);
+    appendRun(USAGE_LOG, {
+      at: new Date().toISOString(),
+      model: MODEL_ID,
+      prompt: promptLabel,
+      cases: cases.length,
+      runs: RUNS,
+      requests: usage.calls,
+      inputTokens: usage.input,
+      outputTokens: usage.output,
+      ...(usd == null ? {} : { usd }),
+    });
+
+    const after = summarize(loadHistory(USAGE_LOG));
+    console.log(
+      `今回のコスト ${usd == null ? "単価不明" : `約 $${usd.toFixed(2)}（約${yen(usd)}円）`}` +
+      `　／　累計 ${after.requests.toLocaleString()} リクエスト・約 $${after.usd.toFixed(2)}（約${yen(after.usd).toLocaleString()}円）`
     );
   }
   console.log("─".repeat(52));
