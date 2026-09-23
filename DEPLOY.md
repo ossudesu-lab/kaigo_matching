@@ -31,6 +31,18 @@ api/
 | `MODEL_EXTRACT` | — | 抽出のモデル。未設定なら `claude-haiku-4-5` |
 | `MODEL_DRAFT` | — | 連絡文のモデル。未設定なら `claude-sonnet-4-6` |
 | `MASK_PII` | — | `1` で氏名を仮IDに置き換えてから送る。未設定なら無効（下記） |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | — | 使用量の記録先（Upstash）。Vercel の Upstash 連携が自動で入れる。Production のみ |
+| `CW_PROJECT` / `CW_PURPOSE` | — | 使用量の記録に付けるラベル。本番は `kaigo_matching` / `prod`。Production のみ |
+
+### 使用量の記録（credit_watch）
+
+Claude を呼ぶたびに、トークン数だけを別リポジトリ credit_watch の Upstash に足し込む。
+使いすぎをスマホに通知するための記録で、2026-08-19 の残高切れ（evalで使い切って本番が502）が発端。
+
+- 記録係は `api/_lib/credit-recorder.js`。**元は credit_watch 側にあり、直すときは元を直してからコピーし直す**
+- 送るのは数字とラベルだけ。記録文もプロンプトも送らない
+- 上の4つの環境変数が1つでも無ければ何もしない。記録に失敗しても本番の応答は変わらない（1.5秒で打ち切る）
+- 失敗すると Vercel のログに `[credit_watch] 記録に失敗: HTTP 401` のような1行が出る（鍵やURLは出さない）
 
 ### Vercel の Sensitive 変数は読み出せない
 
