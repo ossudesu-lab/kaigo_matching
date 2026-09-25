@@ -48,6 +48,12 @@ jobs:
       - name: eval を実行（3回）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 使用量の記録（credit_watch）。本番と分けて見るため用途は eval にする。
+          # Secrets が無ければ記録係は何もしないので、eval 自体は止まらない
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          CW_PROJECT: kaigo_matching
+          CW_PURPOSE: eval
         run: |
           set -o pipefail
           node scripts/eval-extract.js --runs=3 2>&1 | tee eval-output.txt
