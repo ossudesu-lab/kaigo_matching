@@ -43,6 +43,11 @@ Claude を呼ぶたびに、トークン数だけを別リポジトリ credit_wa
 - 送るのは数字とラベルだけ。記録文もプロンプトも送らない
 - 上の4つの環境変数が1つでも無ければ何もしない。記録に失敗しても本番の応答は変わらない（1.5秒で打ち切る）
 - 失敗すると Vercel のログに `[credit_watch] 記録に失敗: HTTP 401` のような1行が出る（鍵やURLは出さない）
+- **eval の使用量も記録する。** CI（`.github/workflows/eval.yml`）では GitHub の Secrets に
+  `KV_REST_API_URL` / `KV_REST_API_TOKEN` を入れておくと `CW_PURPOSE=eval` で記録される。
+  手元で回すときは `.env` に同じ4つ（`CW_PURPOSE=eval`）を書く。**値に引用符を付けないこと**
+- eval が完走率不足などで `process.exit(1)` したときは、最後の1回ぶんの記録が送り切れずに抜けることがある。
+  金額にすると1円未満なので許容し、週報の照合で見る
 
 ### Vercel の Sensitive 変数は読み出せない
 
